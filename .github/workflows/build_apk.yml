@@ -8,11 +8,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Remove unnecessary large folders
-        run: |
-          rm -rf myenv venv build dist _pycache_
-          echo "Cleaned up large folders!"
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -36,7 +31,8 @@ jobs:
 
       - name: Build APK
         run: |
-          flet build apk --verbose --yes --org com.notebook --project notebook_app
+          # এখানে --exclude দিয়ে অপ্রয়োজনীয় ফোল্ডার বাদ দেওয়া হচ্ছে
+          flet build apk --verbose --yes --org com.notebook --project notebook_app --exclude "myenv,venv,.git,.github"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
