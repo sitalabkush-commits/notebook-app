@@ -26,14 +26,12 @@ jobs:
 
       - name: Pre-install Flutter SDK
         run: |
-          # ফ্লেটের প্রম্পট এড়াতে আগেই ফ্লুটার ইনস্টল করে নেওয়া হচ্ছে
           git clone https://github.com/flutter/flutter.git -b stable
           echo "${{ github.workspace }}/flutter/bin" >> $GITHUB_PATH
 
       - name: Build APK
         run: |
-          # --yes ফ্ল্যাগটি দেওয়া হলো যাতে কোনো প্রশ্ন না করে নিজেই কাজ শেষ করে
-          flet build apk --verbose --yes
+          flet build apk --verbose --yes --org com.notebook --project notebook_app
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
