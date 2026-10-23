@@ -1,2 +1,3 @@
 flet
 requests
+boto3
