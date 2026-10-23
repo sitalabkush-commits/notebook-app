@@ -1,53 +1,85 @@
 import flet as ft
 import requests
+import boto3
+from botocore.exceptions import ClientError
 
+# আপনার API এবং Cognito এর তথ্য
 API_URL = "https://6f54fyjspi.execute-api.eu-north-1.amazonaws.com"
+CLIENT_ID = "4djq3t8edrf3f513m57cscf727"
+
+# Cognito ক্লায়েন্ট তৈরি (লগইন/সাইনআপের জন্য)
+cognito = boto3.client('cognito-idp', region_name='eu-north-1')
 
 def main(page: ft.Page):
     page.title = "Digital Notebook"
     page.theme_mode = ft.ThemeMode.LIGHT
-    page.padding = 0  # পুরো স্ক্রিন জুড়ে সুন্দর লেআউটের জন্য
+    page.padding = 20
     page.window_width = 400
     page.window_height = 700
 
     # ==========================================
-    # পেজ ১: লগইন / সাইনআপ স্ক্রিন (Layout)
+    # পেজ ১: লগইন / সাইনআপ স্ক্রিন
     # ==========================================
     def login_screen():
         page.clean()
         
-        username = ft.TextField(label="Username", width=300, border_radius=10)
+        email = ft.TextField(label="Email", width=300, border_radius=10)
         password = ft.TextField(label="Password", password=True, can_reveal_password=True, width=300, border_radius=10)
         
+        def show_msg(msg, is_error=True):
+            page.snack_bar = ft.SnackBar(ft.Text(msg, color=ft.colors.WHITE), bgcolor=ft.colors.RED if is_error else ft.colors.GREEN)
+            page.snack_bar.open = True
+            page.update()
+
         def handle_login(e):
-            if username.value == "" or password.value == "":
-                page.snack_bar = ft.SnackBar(ft.Text("Please enter username and password!"))
-                page.snack_bar.open = True
-                page.update()
+            if not email.value or not password.value:
+                show_msg("Please enter email and password!")
                 return
-            # লগইন সফল হলে মেইন পেজে নিয়ে যাবে
-            notebook_screen()
+            try:
+                # Cognito-তে লগইন রিকোয়েস্ট
+                response = cognito.initiate_auth(
+                    ClientId=CLIENT_ID,
+                    AuthFlow='USER_PASSWORD_AUTH',
+                    AuthParameters={'USERNAME': email.value, 'PASSWORD': password.value}
+                )
+                show_msg("Login Successful!", is_error=False)
+                # লগইন সফল হলে মেইন পেজে যাবে
+                notebook_screen()
+            except ClientError as err:
+                show_msg(err.response['Error']['Message'])
 
-        login_btn = ft.ElevatedButton(
-            "Login / Sign Up", 
-            on_click=handle_login, 
-            width=300, 
-            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))
-        )
+        def handle_signup(e):
+            if not email.value or not password.value:
+                show_msg("Please enter email and password!")
+                return
+            try:
+                # Cognito-তে নতুন ইউজার তৈরি
+                cognito.sign_up(
+                    ClientId=CLIENT_ID,
+                    Username=email.value,
+                    Password=password.value,
+                    UserAttributes=[{'Name': 'email', 'Value': email.value}]
+                )
+                show_msg("Signup successful! You can now login.", is_error=False)
+            except ClientError as err:
+                show_msg(err.response['Error']['Message'])
 
-        # সুন্দর সেন্টার লেআউট
+        login_btn = ft.ElevatedButton("Login", on_click=handle_login, width=300, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)))
+        signup_btn = ft.TextButton("Create new account", on_click=handle_signup)
+
         page.add(
             ft.Container(
                 content=ft.Column(
                     [
                         ft.Icon(ft.icons.MENU_BOOK, size=80, color=ft.colors.BLUE_600),
                         ft.Text("Welcome to Notebook", size=24, weight=ft.FontWeight.BOLD),
-                        ft.Text("Login to sync your notes", color=ft.colors.GREY_600),
-                        ft.Divider(height=30, color=ft.colors.TRANSPARENT),
-                        username,
+                        ft.Text("Login or Sign up to continue", color=ft.colors.GREY_600),
+                        ft.Divider(height=20, color=ft.colors.TRANSPARENT),
+                        email,
                         password,
                         ft.Divider(height=10, color=ft.colors.TRANSPARENT),
-                        login_btn
+                        login_btn,
+                        signup_btn
                     ],
                     alignment=ft.MainAxisAlignment.CENTER,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER
@@ -119,7 +151,6 @@ def main(page: ft.Page):
 
         save_btn = ft.ElevatedButton("Save Note", on_click=save_note, icon=ft.icons.SAVE, style=ft.ButtonStyle(bgcolor=ft.colors.BLUE_600, color=ft.colors.WHITE))
 
-        # হেডার (লগআউট বাটনসহ)
         header = ft.Row(
             [
                 ft.Text("My Digital Notebook", size=20, weight=ft.FontWeight.BOLD),
